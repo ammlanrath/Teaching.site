@@ -1,0 +1,5 @@
+# Elevate Tuitions — robots.txt
+User-agent: *
+Allow: /
+
+Sitemap: https://elevatetuitions.com/sitemap.xml
