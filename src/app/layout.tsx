@@ -1,4 +1,5 @@
 import './global.css'
+import { Analytics } from '@vercel/analytics/next'
 
 export const metadata = {
   title: 'Elevate Tuitions',
@@ -14,6 +15,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen antialiased bg-surface text-ink selection:bg-accent-soft font-sans">
         {children}
+        <Analytics />
       </body>
     </html>
   )
