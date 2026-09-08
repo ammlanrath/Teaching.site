@@ -1,0 +1,604 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id    Int    @id @default(autoincrement()) @db.UnsignedTinyInt
+  name  String @unique
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  id             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  uuid           String    @unique @default(uuid()) @db.Char(36)
+  fullName       String    @map("full_name") @db.VarChar(150)
+  email          String    @unique @db.VarChar(190)
+  phone          String?   @unique @db.VarChar(20)
+  passwordHash   String    @map("password_hash") @db.VarChar(255)
+  roleId         Int       @map("role_id") @db.UnsignedTinyInt
+  status         String    @default("pending") // enum in DB, but Prisma can use String or Enum
+  emailVerified  Boolean   @default(false) @map("email_verified")
+  phoneVerified  Boolean   @default(false) @map("phone_verified")
+  avatarFileId   BigInt?   @map("avatar_file_id") @db.UnsignedBigInt
+  avatarFile     File?     @relation("UserAvatar", fields: [avatarFileId], references: [id])
+  lastLoginAt    DateTime? @map("last_login_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  role                  Role                   @relation(fields: [roleId], references: [id])
+  studentProfile        StudentProfile?
+  teacherProfile        TeacherProfile?
+  parentLinks           ParentStudentLink[]    @relation("ParentLinks")
+  studentLinks          ParentStudentLink[]    @relation("StudentLinks")
+  addresses             Address[]
+  refreshTokens         RefreshToken[]
+  passwordResetTokens   PasswordResetToken[]
+  otpVerifications      OtpVerification[]
+  teacherSubjects       TeacherSubject[]
+  classes               Class[]
+  enrollments           Enrollment[]
+  attendanceRecords     AttendanceRecord[]
+  assignmentsCreated    Assignment[]           @relation("AssignmentCreator")
+  assignmentSubmissions AssignmentSubmission[] @relation("StudentSubmissions")
+  gradedSubmissions     AssignmentSubmission[] @relation("TeacherGraders")
+  testAttempts          TestAttempt[]
+  invoices              Invoice[]
+  subscriptions         Subscription[]
+  announcements         Announcement[]
+  notifications         Notification[]
+  notificationPrefs     NotificationPreference?
+  ownedFiles            File[]                 @relation("FileOwner")
+  accessedFiles         FileAccessLog[]
+  uploadSessions        UploadSession[]
+  activityLogs          ActivityLog[]
+  auditLogs             AuditLog[]             @relation("AuditActor")
+
+  @@index([roleId])
+  @@index([status])
+  @@index([email])
+  @@map("users")
+}
+
+model StudentProfile {
+  id     BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  userId BigInt @unique @map("user_id") @db.UnsignedBigInt
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("student_profiles")
+}
+
+model TeacherProfile {
+  id     BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  userId BigInt @unique @map("user_id") @db.UnsignedBigInt
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("teacher_profiles")
+}
+
+model TeacherSubject {
+  teacherId BigInt @map("teacher_id") @db.UnsignedBigInt
+  subjectId Int    @map("subject_id") @db.UnsignedInt
+
+  user    User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@id([teacherId, subjectId])
+  @@map("teacher_subjects")
+}
+
+model ParentStudentLink {
+  id        BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  parentId  BigInt @map("parent_id") @db.UnsignedBigInt
+  studentId BigInt @map("student_id") @db.UnsignedBigInt
+
+  parent  User @relation("ParentLinks", fields: [parentId], references: [id], onDelete: Cascade)
+  student User @relation("StudentLinks", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId], name: "uq_parent_student")
+  @@map("parent_student_links")
+}
+
+model Address {
+  id     BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  userId BigInt @map("user_id") @db.UnsignedBigInt
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
+}
+
+model RefreshToken {
+  id     BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  userId BigInt @map("user_id") @db.UnsignedBigInt
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id     BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  userId BigInt @map("user_id") @db.UnsignedBigInt
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model OtpVerification {
+  id     BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  userId BigInt @map("user_id") @db.UnsignedBigInt
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("otp_verifications")
+}
+
+model Subject {
+  id        Int     @id @default(autoincrement()) @db.UnsignedInt
+  name      String  @unique @db.VarChar(100)
+  code      String  @unique @db.VarChar(20)
+  isActive  Boolean @default(true) @map("is_active")
+
+  teacherSubjects    TeacherSubject[]
+  classes            Class[]
+  driveClassMappings DriveClassMapping[]
+
+  @@map("subjects")
+}
+
+model Class {
+  id        BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  subjectId Int    @map("subject_id") @db.UnsignedInt
+  teacherId BigInt @map("teacher_id") @db.UnsignedBigInt
+  level     String @db.VarChar(50) // e.g. "Class 10"
+  isActive  Boolean @default(true) @map("is_active")
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  teacher User    @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  batches Batch[]
+  driveMappings DriveClassMapping[]
+
+  @@map("classes")
+}
+
+model Batch {
+  id       BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  classId  BigInt @map("class_id") @db.UnsignedBigInt
+  isActive Boolean @default(true) @map("is_active")
+  capacity Int    @default(50) // CHECK capacity > 0
+
+  class          Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  enrollments    Enrollment[]
+  timetableSlots TimetableSlot[]
+  liveSessions   LiveSession[]
+  assignments    Assignment[]
+  tests          Test[]
+  materials      Material[]
+  feePlans       FeePlan[]
+
+  @@map("batches")
+}
+
+model Enrollment {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  studentId  BigInt   @map("student_id") @db.UnsignedBigInt
+  batchId    BigInt   @map("batch_id") @db.UnsignedBigInt
+  status     String   @default("pending_payment")
+  enrolledOn DateTime @map("enrolled_on") @db.Date
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  student User  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  batch   Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, batchId], name: "uq_student_batch")
+  @@index([status])
+  @@map("enrollments")
+}
+
+model TimetableSlot {
+  id        BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  batchId   BigInt @map("batch_id") @db.UnsignedBigInt
+  dayOfWeek Int    @map("day_of_week") // 0-6
+  startTime String @map("start_time") @db.VarChar(5) // HH:mm
+  endTime   String @map("end_time") @db.VarChar(5)
+
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@map("timetable_slots")
+}
+
+model LiveSession {
+  id              BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  batchId         BigInt   @map("batch_id") @db.UnsignedBigInt
+  recordingFileId BigInt?  @map("recording_file_id") @db.UnsignedBigInt
+  scheduledStart  DateTime @map("scheduled_start")
+  scheduledEnd    DateTime @map("scheduled_end")
+
+  batch             Batch              @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  recordingFile     File?              @relation("SessionRecording", fields: [recordingFileId], references: [id], onDelete: SetNull)
+  attendanceRecords AttendanceRecord[]
+
+  @@map("live_sessions")
+}
+
+model AttendanceRecord {
+  id            BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  liveSessionId BigInt @map("live_session_id") @db.UnsignedBigInt
+  studentId     BigInt @map("student_id") @db.UnsignedBigInt
+
+  liveSession LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+  student     User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([liveSessionId, studentId], name: "uq_session_student")
+  @@map("attendance_records")
+}
+
+model Assignment {
+  id               BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  batchId          BigInt   @map("batch_id") @db.UnsignedBigInt
+  createdBy        BigInt   @map("created_by") @db.UnsignedBigInt
+  attachmentFileId BigInt?  @map("attachment_file_id") @db.UnsignedBigInt
+  title            String   @db.VarChar(255)
+  maxScore         Int      @map("max_score")
+
+  batch       Batch                  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  creator     User                   @relation("AssignmentCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  attachment  File?                  @relation("AssignmentAttachment", fields: [attachmentFileId], references: [id], onDelete: SetNull)
+  submissions AssignmentSubmission[]
+
+  @@map("assignments")
+}
+
+model AssignmentSubmission {
+  id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  assignmentId BigInt    @map("assignment_id") @db.UnsignedBigInt
+  studentId    BigInt    @map("student_id") @db.UnsignedBigInt
+  fileId       BigInt    @map("file_id") @db.UnsignedBigInt
+  gradedBy     BigInt?   @map("graded_by") @db.UnsignedBigInt
+  score        Int?
+  submittedAt  DateTime  @default(now()) @map("submitted_at")
+  gradedAt     DateTime? @map("graded_at")
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    User       @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
+  grader     User?      @relation("TeacherGraders", fields: [gradedBy], references: [id], onDelete: Restrict)
+  file       File       @relation("SubmissionFile", fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@unique([assignmentId, studentId], name: "uq_assignment_student")
+  @@map("assignment_submissions")
+}
+
+model Test {
+  id              BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  batchId         BigInt @map("batch_id") @db.UnsignedBigInt
+  title           String @db.VarChar(255)
+  totalMarks      Int    @map("total_marks")
+  durationMinutes Int    @map("duration_minutes")
+
+  batch     Batch          @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  questions TestQuestion[]
+  attempts  TestAttempt[]
+
+  @@map("tests")
+}
+
+model TestQuestion {
+  id           BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  testId       BigInt @map("test_id") @db.UnsignedBigInt
+  questionText String @map("question_text") @db.Text
+  marks        Int
+
+  test    Test                 @relation(fields: [testId], references: [id], onDelete: Cascade)
+  options TestOption[]
+  answers TestAttemptAnswer[]
+
+  @@map("test_questions")
+}
+
+model TestOption {
+  id         BigInt  @id @default(autoincrement()) @db.UnsignedBigInt
+  questionId BigInt  @map("question_id") @db.UnsignedBigInt
+  optionText String  @map("option_text") @db.Text
+  isCorrect  Boolean @map("is_correct")
+
+  question TestQuestion        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  TestAttemptAnswer[]
+
+  @@map("test_options")
+}
+
+model TestAttempt {
+  id          BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  testId      BigInt   @map("test_id") @db.UnsignedBigInt
+  studentId   BigInt   @map("student_id") @db.UnsignedBigInt
+  startedAt   DateTime @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  test    Test                @relation(fields: [testId], references: [id], onDelete: Cascade)
+  student User                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answers TestAttemptAnswer[]
+
+  @@unique([testId, studentId], name: "uq_test_student_attempt")
+  @@map("test_attempts")
+}
+
+model TestAttemptAnswer {
+  id               BigInt  @id @default(autoincrement()) @db.UnsignedBigInt
+  attemptId        BigInt  @map("attempt_id") @db.UnsignedBigInt
+  questionId       BigInt  @map("question_id") @db.UnsignedBigInt
+  selectedOptionId BigInt? @map("selected_option_id") @db.UnsignedBigInt
+
+  attempt        TestAttempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question       TestQuestion  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption TestOption?   @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
+
+  @@unique([attemptId, questionId], name: "uq_attempt_question")
+  @@map("test_attempt_answers")
+}
+
+model Material {
+  id         BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  batchId    BigInt @map("batch_id") @db.UnsignedBigInt
+  fileId     BigInt @map("file_id") @db.UnsignedBigInt
+  uploadedBy BigInt @map("uploaded_by") @db.UnsignedBigInt
+  title      String @db.VarChar(255)
+
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  file  File  @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@map("materials")
+}
+
+model FeePlan {
+  id           BigInt  @id @default(autoincrement()) @db.UnsignedBigInt
+  batchId      BigInt  @map("batch_id") @db.UnsignedBigInt
+  pricePaise   Int     @map("price_paise")
+  billingCycle String  @map("billing_cycle")
+  isActive     Boolean @default(true) @map("is_active")
+
+  batch         Batch          @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  invoices      Invoice[]
+  subscriptions Subscription[]
+
+  @@map("fee_plans")
+}
+
+model Invoice {
+  id            BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  studentId     BigInt @map("student_id") @db.UnsignedBigInt
+  feePlanId     BigInt @map("fee_plan_id") @db.UnsignedBigInt
+  invoiceNumber String @unique @map("invoice_number") @db.VarChar(50)
+  amountDue     Int    @map("amount_due")
+  status        String @default("pending")
+
+  student      User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feePlan      FeePlan       @relation(fields: [feePlanId], references: [id], onDelete: Restrict)
+  transactions Transaction[]
+
+  @@map("invoices")
+}
+
+model Transaction {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  invoiceId      BigInt   @map("invoice_id") @db.UnsignedBigInt
+  gateway        String   @db.VarChar(50)
+  gatewayTxnId   String   @map("gateway_txn_id") @db.VarChar(100)
+  amount         Int
+  status         String
+  rawPayload     String?  @map("raw_payload") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  refund  Refund?
+
+  @@unique([gateway, gatewayTxnId], name: "uq_gateway_txn")
+  @@map("transactions")
+}
+
+model Subscription {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  studentId BigInt   @map("student_id") @db.UnsignedBigInt
+  feePlanId BigInt   @map("fee_plan_id") @db.UnsignedBigInt
+  status    String
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+
+  student User    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feePlan FeePlan @relation(fields: [feePlanId], references: [id], onDelete: Restrict)
+
+  @@map("subscriptions")
+}
+
+model Refund {
+  id            BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  transactionId BigInt   @unique @map("transaction_id") @db.UnsignedBigInt
+  amount        Int
+  status        String
+  processedAt   DateTime @default(now()) @map("processed_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+
+  @@map("refunds")
+}
+
+model Announcement {
+  id       BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  authorId BigInt   @map("author_id") @db.UnsignedBigInt
+  title    String   @db.VarChar(255)
+  content  String   @db.Text
+  postedAt DateTime @default(now()) @map("posted_at")
+
+  author  User                 @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  targets AnnouncementTarget[]
+
+  @@map("announcements")
+}
+
+model AnnouncementTarget {
+  id             BigInt  @id @default(autoincrement()) @db.UnsignedBigInt
+  announcementId BigInt  @map("announcement_id") @db.UnsignedBigInt
+  targetType     String  @map("target_type") @db.VarChar(50)
+  targetId       BigInt? @map("target_id") @db.UnsignedBigInt // polymorphic
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@map("announcement_targets")
+}
+
+model Notification {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  userId    BigInt   @map("user_id") @db.UnsignedBigInt
+  title     String   @db.VarChar(255)
+  content   String   @db.Text
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries NotificationDelivery[]
+
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id     BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  userId BigInt @unique @map("user_id") @db.UnsignedBigInt
+  email  Boolean @default(true)
+  sms    Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model NotificationDelivery {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  notificationId BigInt   @map("notification_id") @db.UnsignedBigInt
+  channel        String   @db.VarChar(50)
+  status         String
+  sentAt         DateTime @default(now()) @map("sent_at")
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@map("notification_deliveries")
+}
+
+model DriveAccount {
+  id             Int    @id @default(autoincrement()) @db.UnsignedTinyInt
+  accountEmail   String @unique @map("account_email") @db.VarChar(150)
+  quotaBytesUsed BigInt @default(0) @map("quota_bytes_used") @db.UnsignedBigInt
+
+  files          File[]
+  classMappings  DriveClassMapping[]
+  uploadSessions UploadSession[]
+
+  @@map("drive_accounts")
+}
+
+model DriveClassMapping {
+  id             BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  classId        BigInt @map("class_id") @db.UnsignedBigInt
+  subjectId      Int    @map("subject_id") @db.UnsignedInt
+  driveAccountId Int    @map("drive_account_id") @db.UnsignedTinyInt
+
+  class        Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  driveAccount DriveAccount @relation(fields: [driveAccountId], references: [id], onDelete: Restrict)
+
+  @@unique([classId, subjectId], name: "uq_class_subject")
+  @@map("drive_class_mapping")
+}
+
+model File {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  uuid           String   @unique @default(uuid()) @db.Char(36)
+  driveAccountId Int      @map("drive_account_id") @db.UnsignedTinyInt
+  driveFileId    String   @map("drive_file_id") @db.VarChar(100)
+  ownerId        BigInt   @map("owner_id") @db.UnsignedBigInt
+  isDeleted      Boolean  @default(false) @map("is_deleted")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  driveAccount DriveAccount @relation(fields: [driveAccountId], references: [id], onDelete: Restrict)
+  owner        User         @relation("FileOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  avatarUsers           User[]                 @relation("UserAvatar")
+  liveSessionRecordings LiveSession[]          @relation("SessionRecording")
+  assignmentAttachments Assignment[]           @relation("AssignmentAttachment")
+  submissions           AssignmentSubmission[] @relation("SubmissionFile")
+  materials             Material[]
+  accessLogs            FileAccessLog[]
+
+  @@unique([driveAccountId, driveFileId], name: "uq_drive_file")
+  @@map("files")
+}
+
+model FileAccessLog {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  fileId     BigInt   @map("file_id") @db.UnsignedBigInt
+  accessedBy BigInt   @map("accessed_by") @db.UnsignedBigInt
+  accessedAt DateTime @default(now()) @map("accessed_at")
+
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [accessedBy], references: [id], onDelete: Cascade)
+
+  @@map("file_access_logs")
+}
+
+model UploadSession {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  uuid           String   @unique @default(uuid()) @db.Char(36)
+  initiatedBy    BigInt   @map("initiated_by") @db.UnsignedBigInt
+  driveAccountId Int      @map("drive_account_id") @db.UnsignedTinyInt
+  status         String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user         User         @relation(fields: [initiatedBy], references: [id], onDelete: Cascade)
+  driveAccount DriveAccount @relation(fields: [driveAccountId], references: [id], onDelete: Restrict)
+
+  @@map("upload_sessions")
+}
+
+model AnalyticsSnapshot {
+  id           BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  snapshotDate DateTime @map("snapshot_date") @db.Date
+  scopeType    String   @map("scope_type") @db.VarChar(50)
+  scopeId      BigInt?  @map("scope_id") @db.UnsignedBigInt
+  metricKey    String   @map("metric_key") @db.VarChar(100)
+  metricValue  Float    @map("metric_value")
+
+  @@unique([snapshotDate, scopeType, scopeId, metricKey], name: "uq_snapshot")
+  @@map("analytics_snapshots")
+}
+
+model ActivityLog {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  userId    BigInt   @map("user_id") @db.UnsignedBigInt
+  action    String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("activity_logs")
+}
+
+model AuditLog {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  actorId   BigInt   @map("actor_id") @db.UnsignedBigInt
+  action    String   @db.VarChar(255)
+  details   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  actor User @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}
+
+model SystemConfig {
+  configKey   String @id @map("config_key") @db.VarChar(100)
+  configValue String @map("config_value") @db.Text
+
+  @@map("system_config")
+}
