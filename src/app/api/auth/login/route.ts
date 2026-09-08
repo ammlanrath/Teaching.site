@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
-import { loginUser } from '@/backend/auth/authService'
 
-export async function POST(request: Request) {
-  try {
-    const { email, passwordHash } = await request.json()
-    const user = await loginUser(email, passwordHash)
-    return NextResponse.json({ success: true, user })
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 401 })
-  }
+// TEMPORARY DEPLOYMENT MODE:
+// Database integration is disabled until the production MySQL database is connected.
+// Restore the original database implementation when DATABASE_URL is configured.
+export async function POST() {
+  return NextResponse.json(
+    {
+      success: false,
+      message: 'Authentication is temporarily disabled while the production database is being configured.'
+    },
+    { status: 503 }
+  )
 }
