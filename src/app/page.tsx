@@ -272,10 +272,14 @@ export default function Home() {
                 { id: 'materials', icon: Library, title: 'Structured Study Materials', desc: 'Chapter concept vaults, notes, and derivation proofs organized in one portal.' },
                 { id: 'analytics', icon: BarChart3, title: 'Performance Analytics', desc: 'Detailed chapter-wise metrics, weak-area detection, and parent insights.' },
               ].map((feature) => (
-                <button 
+              ].map((feature) => (
+                <div 
                   key={feature.id}
                   onClick={() => setActiveShowcase(feature.id)}
-                  className={`text-left p-6 rounded-2xl transition-all duration-300 border-2 ${activeShowcase === feature.id ? 'bg-surface border-accent shadow-xl shadow-accent/5 scale-105' : 'bg-transparent border-transparent hover:bg-surface-alt'}`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if(e.key === 'Enter' || e.key === ' ') setActiveShowcase(feature.id) }}
+                  className={`text-left p-6 rounded-2xl transition-all duration-300 border-2 cursor-pointer outline-none ${activeShowcase === feature.id ? 'bg-surface border-accent shadow-xl shadow-accent/5 scale-105' : 'bg-transparent border-transparent hover:bg-surface-alt'}`}
                 >
                   <div className="flex items-center gap-4 mb-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${activeShowcase === feature.id ? 'bg-accent text-white' : 'bg-surface-alt text-ink/60'}`}>
@@ -284,7 +288,7 @@ export default function Home() {
                     <h4 className="text-xl font-bold">{feature.title}</h4>
                   </div>
                   <p className="text-ink/70 leading-relaxed ml-14">{feature.desc}</p>
-                </button>
+                </div>
               ))}
             </div>
 
