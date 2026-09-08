@@ -272,7 +272,6 @@ export default function Home() {
                 { id: 'materials', icon: Library, title: 'Structured Study Materials', desc: 'Chapter concept vaults, notes, and derivation proofs organized in one portal.' },
                 { id: 'analytics', icon: BarChart3, title: 'Performance Analytics', desc: 'Detailed chapter-wise metrics, weak-area detection, and parent insights.' },
               ].map((feature) => (
-              ].map((feature) => (
                 <div 
                   key={feature.id}
                   onClick={() => setActiveShowcase(feature.id)}
